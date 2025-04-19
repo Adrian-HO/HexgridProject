@@ -56,7 +56,7 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "hexgridProject.sln",
+    "dotnet.defaultSolution": "HexgridProject.sln",
     "netbeans.jdkhome": "c:\\Program Files\\Microsoft\\jdk-17.0.13.11-hotspot",
     "netbeans.project.jdkhome": "c:\\Program Files\\Microsoft\\jdk-17.0.13.11-hotspot",
     "java.jdt.ls.java.home": "c:\\Program Files\\Microsoft\\jdk-17.0.13.11-hotspot",

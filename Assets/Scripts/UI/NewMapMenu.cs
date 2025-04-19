@@ -8,7 +8,7 @@ public class NewMapMenu : MonoBehaviour
 	//reference to the map generator.
 	public HexMapGenerator mapGenerator;
 
-	bool generateMaps = true;
+	bool generateMaps = false;
 	bool wrapping = true;
 
 	public void ToggleMapGeneration(bool toggle)

@@ -245,8 +245,9 @@ public class HexMapGenerator : MonoBehaviour
             // setting the water level of all cells to 1.
             grid.GetCell(i).WaterLevel = waterLevel;
 
-            CreateRegions();
         }
+
+        CreateRegions();
 
         //calculate how many cells have to become land. That amount is our land budget.
         CreateLand();
@@ -618,13 +619,13 @@ public class HexMapGenerator : MonoBehaviour
             case 2:
                 if (Random.value < 0.5f)
                 {
-                    region.xMin = mapBorderX;
+                    region.xMin = borderX;
                     region.xMax = grid.cellCountX / 2 - regionBorder;
                     region.zMin = mapBorderZ;
                     region.zMax = grid.cellCountZ - mapBorderZ;
                     regions.Add(region);
                     region.xMin = grid.cellCountX / 2 + regionBorder;
-                    region.xMax = grid.cellCountX - mapBorderX;
+                    region.xMax = grid.cellCountX - borderX;
                     regions.Add(region);
                 }
                 else
@@ -633,13 +634,13 @@ public class HexMapGenerator : MonoBehaviour
                     {
                         borderX = 0;
                     }
-                    region.xMin = mapBorderX;
-                    region.xMax = grid.cellCountX - mapBorderX;
+                    region.xMin = borderX;
+                    region.xMax = grid.cellCountX - borderX;
                     region.zMin = mapBorderZ;
                     region.zMax = grid.cellCountZ / 2 - regionBorder;
                     regions.Add(region);
-                    region.xMin = grid.cellCountX / 2 + regionBorder;
-                    region.xMax = grid.cellCountX - mapBorderX;
+                    region.zMin = grid.cellCountZ / 2 + regionBorder;
+                    region.zMax = grid.cellCountZ - mapBorderZ;
                     regions.Add(region);
                 }
                 break;
@@ -702,11 +703,12 @@ public class HexMapGenerator : MonoBehaviour
                 erodibleCells[index] = erodibleCells[erodibleCells.Count - 1];
                 erodibleCells.RemoveAt(erodibleCells.Count - 1);
             }
+
             for (HexDirection d = HexDirection.NE; d <= HexDirection.NW; d++)
             {
                 HexCell neighbor = cell.GetNeighbor(d);
                 if (
-                    neighbor &&
+                    neighbor && neighbor.Elevation == cell.Elevation + 2 &&
                     !erodibleCells.Contains(neighbor))
                 {
                     erodibleCells.Add(neighbor);
@@ -748,73 +750,84 @@ public class HexMapGenerator : MonoBehaviour
     //erosion lowers one cell and raise its neighbors
     HexCell GetErosionTarget(HexCell cell)
     {
-        List<HexCell> candiddates = ListPool<HexCell>.Get();
+        List<HexCell> candidates = ListPool<HexCell>.Get();
         int erodibleElevation = cell.Elevation - 2;
         for (HexDirection d = HexDirection.NE; d <= HexDirection.NW; d++)
         {
             HexCell neighbor = cell.GetNeighbor(d);
             if (neighbor && neighbor.Elevation <= erodibleElevation)
             {
-                candiddates.Add(neighbor);
+                candidates.Add(neighbor);
             }
         }
-        HexCell target = candiddates[Random.Range(0, candiddates.Count)];
-        ListPool<HexCell>.Add(candiddates);
+        HexCell target = candidates[Random.Range(0, candidates.Count)];
+        ListPool<HexCell>.Add(candidates);
         return target;
     }
 
     void CreateRivers()
     {
         List<HexCell> riverOrigins = ListPool<HexCell>.Get();
-		for (int i = 0; i < cellCount; i++) {
-			HexCell cell = grid.GetCell(i);
-			if (cell.IsUnderwater) {
-				continue;
-			}
-			ClimateData data = climate[i];
-			float weight =
-				data.moisture * (cell.Elevation - waterLevel) /
-				(elevationMaximum - waterLevel);
-			if (weight > 0.75f) {
-				riverOrigins.Add(cell);
-				riverOrigins.Add(cell);
-			}
-			if (weight > 0.5f) {
-				riverOrigins.Add(cell);
-			}
-			if (weight > 0.25f) {
-				riverOrigins.Add(cell);
-			}
-		}
+        for (int i = 0; i < cellCount; i++)
+        {
+            HexCell cell = grid.GetCell(i);
+            if (cell.IsUnderwater)
+            {
+                continue;
+            }
+            ClimateData data = climate[i];
+            float weight =
+                data.moisture * (cell.Elevation - waterLevel) /
+                (elevationMaximum - waterLevel);
+            if (weight > 0.75f)
+            {
+                riverOrigins.Add(cell);
+                riverOrigins.Add(cell);
+            }
+            if (weight > 0.5f)
+            {
+                riverOrigins.Add(cell);
+            }
+            if (weight > 0.25f)
+            {
+                riverOrigins.Add(cell);
+            }
+        }
 
-		int riverBudget = Mathf.RoundToInt(landCells * riverPercentage * 0.01f);
-		while (riverBudget > 0 && riverOrigins.Count > 0) {
-			int index = Random.Range(0, riverOrigins.Count);
-			int lastIndex = riverOrigins.Count - 1;
-			HexCell origin = riverOrigins[index];
-			riverOrigins[index] = riverOrigins[lastIndex];
-			riverOrigins.RemoveAt(lastIndex);
+        int riverBudget = Mathf.RoundToInt(landCells * riverPercentage * 0.01f);
+        while (riverBudget > 0 && riverOrigins.Count > 0)
+        {
+            int index = Random.Range(0, riverOrigins.Count);
+            int lastIndex = riverOrigins.Count - 1;
+            HexCell origin = riverOrigins[index];
+            riverOrigins[index] = riverOrigins[lastIndex];
+            riverOrigins.RemoveAt(lastIndex);
 
-			if (!origin.HasRiver) {
-				bool isValidOrigin = true;
-				for (HexDirection d = HexDirection.NE; d <= HexDirection.NW; d++) {
-					HexCell neighbor = origin.GetNeighbor(d);
-					if (neighbor && (neighbor.HasRiver || neighbor.IsUnderwater)) {
-						isValidOrigin = false;
-						break;
-					}
-				}
-				if (isValidOrigin) {
-					riverBudget -= CreateRiver(origin);
-				}
-			}
-		}
+            if (!origin.HasRiver)
+            {
+                bool isValidOrigin = true;
+                for (HexDirection d = HexDirection.NE; d <= HexDirection.NW; d++)
+                {
+                    HexCell neighbor = origin.GetNeighbor(d);
+                    if (neighbor && (neighbor.HasRiver || neighbor.IsUnderwater))
+                    {
+                        isValidOrigin = false;
+                        break;
+                    }
+                }
+                if (isValidOrigin)
+                {
+                    riverBudget -= CreateRiver(origin);
+                }
+            }
+        }
 
-		if (riverBudget > 0) {
-			Debug.LogWarning("Failed to use up river budget.");
-		}
+        if (riverBudget > 0)
+        {
+            Debug.LogWarning("Failed to use up river budget.");
+        }
 
-		ListPool<HexCell>.Add(riverOrigins);
+        ListPool<HexCell>.Add(riverOrigins);
     }
 
     List<HexDirection> flowDirections = new List<HexDirection>();
